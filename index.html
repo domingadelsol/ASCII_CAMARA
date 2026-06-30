@@ -686,12 +686,18 @@
     const lines = output.textContent.split('\n').filter(l => l.length);
     const lineH = fontSize * 1.1;
     const lineW = fontSize * 0.62;
-    const pw    = Math.round((lines[0]?.length || 1) * lineW) || 800;
-    const ph    = Math.round(lines.length * lineH) || 600;
+    // Tamaño FIJO basado en cols/rows actuales, no en el largo variable de cada línea de texto.
+    // Esto evita que el canvas cambie de tamaño entre frames (lo cual reinicia captureStream).
+    const pw = Math.round(cols * lineW) || 800;
+    const ph = Math.round(rows * lineH) || 600;
 
-    const pc   = document.getElementById('rec-canvas');
-    pc.width   = pw;
-    pc.height  = ph;
+    const pc = document.getElementById('rec-canvas');
+    // CRÍTICO: asignar canvas.width/height reinicia el contexto y rompe el
+    // MediaStreamTrack activo de captureStream(). Solo lo hacemos si el tamaño cambió.
+    if (pc.width !== pw || pc.height !== ph) {
+      pc.width  = pw;
+      pc.height = ph;
+    }
     const pctx = pc.getContext('2d');
 
     pctx.fillStyle = isDark ? '#0a0a0a' : '#f5f0e8';
@@ -720,7 +726,12 @@
     const recCanvas = document.getElementById('rec-canvas');
     renderAsciiToCanvas(); // tamaño inicial
 
+    // captureStream(30) asegura un stream continuo en todos los navegadores.
+    // En Chrome, además llamamos a track.requestFrame() en cada dibujo para sincronizar
+    // exactamente el frame capturado con el redibujo del canvas.
     const stream = recCanvas.captureStream(30);
+    const track  = stream.getVideoTracks()[0];
+    const hasRequestFrame = track && typeof track.requestFrame === 'function';
     recChunks = [];
 
     let mimeType = 'video/webm;codecs=vp9';
@@ -745,13 +756,13 @@
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     };
 
-    // Redibuja el canvas de grabación en cada frame mientras se grava
+    // Redibuja el canvas de grabación y fuerza un nuevo frame en el stream
     function recDraw() {
       if (!isRecording) return;
       renderAsciiToCanvas();
-      // Algunos navegadores necesitan solicitar el frame manualmente para que el stream avance
-      const [track] = stream.getVideoTracks();
-      if (track && typeof track.requestFrame === 'function') track.requestFrame();
+      if (hasRequestFrame) {
+        track.requestFrame();
+      }
       recDrawLoop = requestAnimationFrame(recDraw);
     }
 
