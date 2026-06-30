@@ -287,12 +287,111 @@
 
     video, canvas { display: none; }
 
+    /* Diálogo: ¿Guardar en Fotos? */
+    #save-dialog-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+    #save-dialog-overlay.visible { display: flex; }
+    #save-dialog {
+      background: var(--bg);
+      border: 3px solid var(--border);
+      max-width: 360px;
+      width: 100%;
+      padding: 22px 20px;
+      position: relative;
+    }
+    #save-dialog::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 10px; height: 10px;
+      background: var(--red);
+    }
+    #save-dialog-title {
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--fg);
+      margin-bottom: 8px;
+    }
+    #save-dialog-sub {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    #save-dialog-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #save-dialog-btns button {
+      flex: 1;
+      justify-content: center;
+      padding: 10px 8px;
+      font-size: 10px;
+      white-space: normal;
+      text-align: center;
+    }
+
     /* hud-secondary: siempre visible en desktop, scrollable en móvil */
     #hud-secondary {
       display: flex;
       align-items: stretch;
     }
     #hud-secondary .hud-block { border-bottom: none; }
+
+    /* === TABLET (601px – 1024px): zweizeiliges Layout, aber komfortabler als Mobil === */
+    @media (min-width: 601px) and (max-width: 1024px) {
+      #hud {
+        flex-wrap: wrap;
+        height: auto;
+      }
+      #title-block {
+        height: 46px;
+        font-size: 11px;
+        flex: 1;
+        border-right: none;
+        border-bottom: 2px solid var(--border);
+      }
+      .hud-block-primary {
+        display: flex !important;
+        height: 46px;
+        border-bottom: 2px solid var(--border);
+      }
+      .hud-block.grow {
+        display: flex;
+        height: 46px;
+        border-bottom: 2px solid var(--border);
+      }
+      #hud-secondary {
+        display: flex;
+        width: 100%;
+        flex-wrap: wrap;
+      }
+      #hud-secondary .hud-block {
+        border-bottom: none;
+        height: 42px;
+      }
+      .hud-block { padding: 0 12px; gap: 7px; }
+      button { font-size: 10px; padding: 7px 13px; }
+      .color-btn { width: 22px; height: 22px; }
+      select { font-size: 10px; }
+      input[type=range] { width: 90px; }
+      .hud-label { display: inline; font-size: 10px; }
+    }
 
     @media (max-width: 600px) {
       /* HUD wird zweizeilig */
@@ -436,6 +535,17 @@
   </div>
 </div>
 
+<div id="save-dialog-overlay">
+  <div id="save-dialog">
+    <p id="save-dialog-title" data-i18n="saveTitle">¿GUARDAR EN FOTOS?</p>
+    <p id="save-dialog-sub" data-i18n="saveSub">El video se guardará en tu galería de Fotos.</p>
+    <div id="save-dialog-btns">
+      <button id="save-yes" class="primary" data-i18n="saveYes">SÍ, GUARDAR</button>
+      <button id="save-no" data-i18n="saveNo">DESCARGAR ARCHIVO</button>
+    </div>
+  </div>
+</div>
+
 <video id="video" autoplay playsinline muted></video>
 <canvas id="canvas"></canvas>
 <canvas id="rec-canvas"></canvas>
@@ -459,7 +569,11 @@
       placeholder: 'Kamera aktivieren um zu starten',
       camError: 'KAMERAZUGRIFF VERWEIGERT',
       camErrorSub: 'Browserberechtigungen prüfen',
-      portfolio: 'Portfolio'
+      portfolio: 'Portfolio',
+      saveTitle: 'IN FOTOS SPEICHERN?',
+      saveSub: 'Das Video wird in deiner Fotogalerie gespeichert.',
+      saveYes: 'JA, SPEICHERN',
+      saveNo: 'DATEI HERUNTERLADEN'
     },
     en: {
       start: '▶ START', stop: '■ STOP',
@@ -477,7 +591,11 @@
       placeholder: 'Activate camera to start',
       camError: 'CAMERA ACCESS DENIED',
       camErrorSub: 'Check browser permissions',
-      portfolio: 'Portfolio'
+      portfolio: 'Portfolio',
+      saveTitle: 'SAVE TO PHOTOS?',
+      saveSub: 'The video will be saved to your photo gallery.',
+      saveYes: 'YES, SAVE',
+      saveNo: 'DOWNLOAD FILE'
     },
     es: {
       start: '▶ INICIAR', stop: '■ DETENER',
@@ -495,7 +613,11 @@
       placeholder: 'Activa la cámara para comenzar',
       camError: 'ACCESO A LA CÁMARA DENEGADO',
       camErrorSub: 'Comprueba los permisos del navegador',
-      portfolio: 'Portafolio'
+      portfolio: 'Portafolio',
+      saveTitle: '¿GUARDAR EN FOTOS?',
+      saveSub: 'El video se guardará en tu galería de Fotos.',
+      saveYes: 'SÍ, GUARDAR',
+      saveNo: 'DESCARGAR ARCHIVO'
     }
   };
 
@@ -749,11 +871,7 @@
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recChunks.push(e.data); };
     mediaRecorder.onstop = () => {
       const blob = new Blob(recChunks, { type: 'video/webm' });
-      const a = document.createElement('a');
-      a.href     = URL.createObjectURL(blob);
-      a.download = `ascii-kamera-${Date.now()}.webm`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      showSaveDialog(blob);
     };
 
     // Redibuja el canvas de grabación y fuerza un nuevo frame en el stream
@@ -772,6 +890,54 @@
 
     recDraw();
     mediaRecorder.start(250); // entrega datos cada 250ms para asegurar un stream continuo
+  }
+
+  // --- Diálogo: ¿Guardar en Fotos? ---
+  const saveOverlay = document.getElementById('save-dialog-overlay');
+  const saveYesBtn  = document.getElementById('save-yes');
+  const saveNoBtn   = document.getElementById('save-no');
+
+  function downloadBlob(blob) {
+    const a = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = `ascii-kamera-${Date.now()}.webm`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  function showSaveDialog(blob) {
+    const filename = `ascii-kamera-${Date.now()}.webm`;
+    const file = new File([blob], filename, { type: 'video/webm' });
+    const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+
+    if (!canShareFiles) {
+      // El navegador no soporta compartir archivos (ej. escritorio) — descarga directa
+      downloadBlob(blob);
+      return;
+    }
+
+    saveOverlay.classList.add('visible');
+
+    const onYes = async () => {
+      cleanup();
+      try {
+        // El share sheet nativo de iOS/Android ofrece "Guardar en Fotos / Galería"
+        await navigator.share({ files: [file], title: 'ASCII Kamera' });
+      } catch (e) {
+        // Si el usuario cancela el share sheet, no hacemos nada más
+      }
+    };
+    const onNo = () => {
+      cleanup();
+      downloadBlob(blob);
+    };
+    function cleanup() {
+      saveOverlay.classList.remove('visible');
+      saveYesBtn.removeEventListener('click', onYes);
+      saveNoBtn.removeEventListener('click', onNo);
+    }
+    saveYesBtn.addEventListener('click', onYes);
+    saveNoBtn.addEventListener('click', onNo);
   }
 
   function stopRecording() {
