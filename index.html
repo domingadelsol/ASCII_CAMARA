@@ -749,14 +749,18 @@
     function recDraw() {
       if (!isRecording) return;
       renderAsciiToCanvas();
+      // Algunos navegadores necesitan solicitar el frame manualmente para que el stream avance
+      const [track] = stream.getVideoTracks();
+      if (track && typeof track.requestFrame === 'function') track.requestFrame();
       recDrawLoop = requestAnimationFrame(recDraw);
     }
-    recDraw();
 
-    mediaRecorder.start();
     isRecording = true;
     recordBtn.textContent = t('recordStop');
     recordBtn.classList.add('active-btn');
+
+    recDraw();
+    mediaRecorder.start(250); // entrega datos cada 250ms para asegurar un stream continuo
   }
 
   function stopRecording() {
